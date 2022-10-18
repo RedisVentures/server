@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 cmake_minimum_required(VERSION 3.18)
-
+set(CMAKE_CXX_STANDARD 17)
 project(tritonserver LANGUAGES C CXX)
 
 include(CMakeDependentOption)
@@ -109,13 +109,13 @@ include(FetchContent)
 
 FetchContent_Declare(
   repo-core
-  GIT_REPOSITORY https://github.com/triton-inference-server/core.git
-  GIT_TAG ${TRITON_CORE_REPO_TAG}
+  GIT_REPOSITORY https://github.com/RedisVentures/core.git
+  GIT_TAG redis_cache
 )
 FetchContent_Declare(
   repo-third-party
-  GIT_REPOSITORY https://github.com/triton-inference-server/third_party.git
-  GIT_TAG ${TRITON_THIRD_PARTY_REPO_TAG}
+  GIT_REPOSITORY https://github.com/RedisVentures/triton_third_party.git
+  GIT_TAG redis_cache
 )
 
 set(TRITON_CORE_HEADERS_ONLY OFF)
@@ -182,6 +182,9 @@ endif() # TRITON_ENABLE_HTTP || TRITON_ENABLE_METRICS || TRITON_ENABLE_SAGEMAKER
 if(${TRITON_ENABLE_GRPC})
   set(TRITON_DEPENDS ${TRITON_DEPENDS} grpc)
 endif() # TRITON_ENABLE_GRPC
+if(${TRITON_ENABLE_REDIS_CACHE})
+  set(TRITON_DEPENDS ${TRITON_DEPENDS} redis++ hiredis)
+endif() # TRITON_ENABLE_REDIS_CACHE
 
 ExternalProject_Add(triton-server
   PREFIX triton-server
@@ -209,6 +212,8 @@ ExternalProject_Add(triton-server
     -Daws-c-event-stream_DIR:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/aws-sdk-cpp/lib/aws-c-event-stream/cmake
     -Daws-c-common_DIR:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/aws-sdk-cpp/lib/aws-c-common/cmake
     -Daws-checksums_DIR:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/aws-sdk-cpp/lib/aws-checksums/cmake
+    -DREDISPP_DIR:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/redis++
+    -DHIREDIS_DIR:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/hiredis
     -DTRITON_THIRD_PARTY_REPO_TAG:STRING=${TRITON_THIRD_PARTY_REPO_TAG}
     -DTRITON_COMMON_REPO_TAG:STRING=${TRITON_COMMON_REPO_TAG}
     -DTRITON_CORE_REPO_TAG:STRING=${TRITON_CORE_REPO_TAG}

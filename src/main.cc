@@ -306,6 +306,9 @@ enum OptionId {
   OPTION_PINNED_MEMORY_POOL_BYTE_SIZE,
   OPTION_CUDA_MEMORY_POOL_BYTE_SIZE,
   OPTION_RESPONSE_CACHE_BYTE_SIZE,
+  OPTION_RESPONSE_CACHE_ADDRS,
+  OPTION_RESPONSE_CACHE_USERNAME,
+  OPTION_RESPONSE_CACHE_PASSWORD, // TODO add in TLS capability
   OPTION_MIN_SUPPORTED_COMPUTE_CAPABILITY,
   OPTION_EXIT_TIMEOUT_SECS,
   OPTION_BACKEND_DIR,
@@ -612,6 +615,19 @@ std::vector<Option> options_
        "request caching in the model configuration. By default, no model uses "
        "request caching even if the request cache is enabled with the "
        "--response-cache-byte-size flag. Default is 0."},
+      {OPTION_RESPONSE_CACHE_ADDRS, "response-cache-redis-address",
+       Option::ArgStr,
+      "Address of the Redis instance(s) to be used for the inference response"
+      "cache. The address should be of the form <host>:<port>"
+      "For clusters, a comma-separated string of addresses can be passed."},
+      {OPTION_RESPONSE_CACHE_USERNAME, "response-cache-redis-username",
+       Option::ArgStr,
+      "The username to use for communication to redis inference response cache"
+      "defaults to the default redis username"},
+      {OPTION_RESPONSE_CACHE_PASSWORD, "response-cache-redis-password",
+       Option::ArgStr,
+      "The password to use for communication to redis inference response cache"
+      "defaults to empty string."},
       {OPTION_MIN_SUPPORTED_COMPUTE_CAPABILITY,
        "min-supported-compute-capability", Option::ArgFloat,
        "The minimum supported CUDA compute capability. GPUs that don't support "
@@ -1331,6 +1347,11 @@ Parse(TRITONSERVER_ServerOptions** server_options, int argc, char** argv)
       std::max(2u, 2 * std::thread::hardware_concurrency());
   uint64_t response_cache_byte_size = 0;
 
+  // redis response cache settings
+  std::string response_cache_address = "";
+  std::string response_cache_username = "default";
+  std::string response_cache_password = "";
+
   std::string backend_dir = "/opt/tritonserver/backends";
   std::string repoagent_dir = "/opt/tritonserver/repoagents";
   std::vector<std::tuple<std::string, std::string, std::string>>
@@ -1723,6 +1744,15 @@ Parse(TRITONSERVER_ServerOptions** server_options, int argc, char** argv)
       case OPTION_RESPONSE_CACHE_BYTE_SIZE:
         response_cache_byte_size = (uint64_t)ParseLongLongOption(optarg);
         break;
+      case OPTION_RESPONSE_CACHE_ADDRS:
+        response_cache_address = std::string(optarg);
+        break;
+      case OPTION_RESPONSE_CACHE_USERNAME:
+        response_cache_username = std::string(optarg);
+        break;
+      case OPTION_RESPONSE_CACHE_PASSWORD:
+        response_cache_password = std::string(optarg);
+        break;
       case OPTION_MIN_SUPPORTED_COMPUTE_CAPABILITY:
         min_supported_compute_capability = ParseOption<double>(optarg);
         break;
@@ -1895,6 +1925,18 @@ Parse(TRITONSERVER_ServerOptions** server_options, int argc, char** argv)
       TRITONSERVER_ServerOptionsSetResponseCacheByteSize(
           loptions, response_cache_byte_size),
       "setting total response cache byte size");
+  FAIL_IF_ERR(
+      TRITONSERVER_ServerOptionsSetResponseCacheAddress(
+          loptions, response_cache_address.c_str()),
+      "setting response cache redis address");
+  FAIL_IF_ERR(
+      TRITONSERVER_ServerOptionsSetResponseCacheUsername(
+          loptions, response_cache_username.c_str()),
+      "setting response cache redis username");
+  FAIL_IF_ERR(
+      TRITONSERVER_ServerOptionsSetResponseCachePassword(
+          loptions, response_cache_password.c_str()),
+      "setting response cache redis password");
   FAIL_IF_ERR(
       TRITONSERVER_ServerOptionsSetMinSupportedComputeCapability(
           loptions, min_supported_compute_capability),
